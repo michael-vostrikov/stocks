@@ -1,0 +1,21 @@
+{
+    "name": "user/stocks",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {"App\\": "app/"}
+    },
+    "require": {
+        "yiisoft/yii2": "~2.0.14"
+    },
+    "config": {
+        "fxp-asset": {
+            "enabled": false
+        }
+    },
+    "repositories": [
+        {
+            "type": "composer",
+            "url": "https://asset-packagist.org"
+        }
+    ]
+}
