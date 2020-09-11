@@ -6,15 +6,57 @@ use Yii;
 use App\Model\Document;
 use App\Model\DocumentType;
 use App\Model\CurrentStock;
-use RuntimeException;
+use App\Model\LogicException;
 
 class DocumentManagerController extends \yii\console\Controller
 {
     public function actionClose($documentId, $closingType)
     {
-        $transaction = Yii::$app->db->beginTransaction();
-        $this->closeDoc((int)$documentId, (int)$closingType);
-        $transaction->commit();
+        $this->runInTransaction(function () use ($documentId, $closingType) {
+            $this->closeDoc((int)$documentId, (int)$closingType);
+        });
+    }
+
+    protected function runInTransaction(callable $actionCallback, $maxTryNumber = 10)
+    {
+        $transaction = null;
+
+        $this->executeWithRetry(
+            function () use ($actionCallback, &$transaction) {
+                $transaction = Yii::$app->db->beginTransaction();
+                $actionCallback();
+                $transaction->commit();
+            },
+            function (\Exception $ex, int $tryNumber) use ($maxTryNumber, &$transaction) {
+                $transaction->rollback();
+
+                if ($ex instanceof \yii\db\Exception) {
+                    return ($tryNumber < $maxTryNumber);
+                }
+
+                return false;
+            }
+        );
+    }
+
+    protected function executeWithRetry(callable $actionCallback, callable $errorCallback)
+    {
+        $tryNumber = 0;
+        while (true) {
+            try {
+                $actionCallback();
+                break;
+
+            } catch (\Exception $ex) {
+                $tryNumber++;
+                $needContinue = $errorCallback($ex, $tryNumber);
+                if ($needContinue) {
+                    continue;
+                }
+
+                throw $ex;
+            }
+        }
     }
 
     // type - 1 закрытие, -1 открытие
@@ -23,13 +65,13 @@ class DocumentManagerController extends \yii\console\Controller
         /** @var Document $document */
         $document = Document::find()->where(['id' => $documentId])->forUpdate()->with(['positions', 'type'])->one();
         if ($document->status === $closingType) {
-            throw new RuntimeException('Документ уже находится в этом статусе.');
+            throw new LogicException('Документ уже находится в этом статусе.');
         }
 
         if (in_array($document->document_type_id, [DocumentType::ZPS, DocumentType::PLAN_PROIZVODSTVA])) {
             $exists = $document->getPositions()->andWhere(['AND', ['!=', 'cnt', 0], ['IS NOT', 'cnt', null]])->exists();
             if ($exists) {
-                throw new RuntimeException('Документы данного типа нельзя закрывать если есть позиции с не нулевыми количествами.');
+                throw new LogicException('Документы данного типа нельзя закрывать если есть позиции с не нулевыми количествами.');
             }
         }
 
