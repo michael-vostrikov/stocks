@@ -143,8 +143,8 @@ class PerformanceTestController extends \yii\console\Controller
             list($resource, $pipes) = $processData;
 
             // clear data from pipes to prevent process getting stuck on output
-            while (fread($pipes[1], 100 * 1024));
-            while (fread($pipes[2], 100 * 1024));
+            while ($line = fread($pipes[1], 100 * 1024)) echo $line;
+            while ($line = fread($pipes[2], 100 * 1024)) echo $line;
 
             $status = proc_get_status($resource);
             if ($status['running'] === false) {

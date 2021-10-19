@@ -2,6 +2,7 @@
 
 namespace App\Console;
 
+use App\Model\LogicException;
 use Yii;
 use App\Model\Document;
 use App\Service\DocumentService;
@@ -21,7 +22,12 @@ class DocumentManagerController extends \yii\console\Controller
     public function runAction($id, $params = [])
     {
         return $this->documentService->runInTransaction(function () use ($id, $params) {
-            return parent::runAction($id, $params);
+            try {
+                return parent::runAction($id, $params);
+            } catch (LogicException $ex) {
+                echo $ex->getMessage() . "\n";
+                return null;
+            }
         });
     }
 

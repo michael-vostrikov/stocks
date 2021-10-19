@@ -1,4 +1,6 @@
 .idea
 vendor
 app/runtime
+runtime
+.env
 composer.phar

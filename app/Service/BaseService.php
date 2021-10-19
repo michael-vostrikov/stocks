@@ -1,6 +1,7 @@
 <?php
 namespace App\Service;
 
+use App\Model\LogicException;
 use Yii;
 
 class BaseService
@@ -18,7 +19,9 @@ class BaseService
                 return $res;
             },
             function (\Exception $ex, int $tryNumber) use ($maxTryNumber, &$transaction) {
-                $transaction->rollback();
+                if ($transaction !== null) {
+                    $transaction->rollback();
+                }
 
                 if ($ex instanceof \yii\db\Exception) {
                     return ($tryNumber < $maxTryNumber);

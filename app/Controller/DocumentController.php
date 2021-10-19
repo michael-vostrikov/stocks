@@ -1,6 +1,7 @@
 <?php
 namespace App\Controller;
 
+use App\Model\Document;
 use App\Model\LogicException;
 use App\Service\DocumentService;
 use yii\web\HttpException;
@@ -30,10 +31,18 @@ class DocumentController extends \yii\web\Controller
         });
     }
 
-    public function actionClose($id, $type)
+    public function actionClose($id, $type = null)
     {
+        if ($id === 'random') $id = rand(1, 1000);
+
+        /** @var Document $document */
+        $document = Document::find()->where(['id' => $id])->forUpdate()->with(['positions', 'type'])->one();
+        if (empty($type)) {
+            $type = ($document->status === 1 ? -1 : 1);
+        }
+
         \Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
-        $this->documentService->closeDoc((int)$id, (int)$type);
+        $this->documentService->closeDoc($document, (int)$type);
 
         return ['success' => true];
     }
